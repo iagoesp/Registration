@@ -188,8 +188,7 @@ class Window(QWidget):
         button.hide()
 
     #adicionar estruturas
-    def addListaButton(self):
-        self.updateButtons()
+    def addListaButton(self):   
         num_elementos = self.elementos.rowCount()
         crop_phanton = QPushButtonLabel(self.mainClass)
         button = QPushButton()
@@ -237,6 +236,7 @@ class MainClass(QWidget):
         self.btn_refazer = QPushButton('Refazer') # Botao para refazer os alinhamentos e inserir os phantoms
         self.btn_qualidade = QPushButton('Redefinir qualidade') # Botao para aplicar filtros na imagem alinhada
         self.button = QPushButton('Add Phanton') # Botao para alinhar phantoms
+        self.buttonLista = QPushButton('Abrir lista') # Botao para alinhar phantoms
         self.btn_add_phantons = [] # para adicionar os phantoms em uma lista
         self.ids = 0
         self.mainCount = 0
@@ -294,11 +294,16 @@ class MainClass(QWidget):
         self.root.addWidget(self.label1)
         self.root.addWidget(self.label2)
 
+        self.buttonLista.setEnabled(False)
+        size = QSize(screensize[0]/19, screensize[1]/7)
+        self.buttonLista.setMinimumSize(size)
+        self.buttonLista.clicked.connect(self.exibirLista)
         self.button.setEnabled(False)
-        size = QSize(screensize[0]/9, screensize[1]/7)
+        size = QSize(screensize[0]/19, screensize[1]/7)
         self.button.setMinimumSize(size)
-
+        self.listBox.addWidget(self.buttonLista)
         self.listBox.addWidget(self.button)
+
         self.listBox.setAlignment(Qt.AlignLeft)
         self.button.clicked.connect(self.addPhantons)
 
@@ -317,30 +322,35 @@ class MainClass(QWidget):
 
     #funcao para remover a estrutura recortada
     def removePhantom(self, button):
+        if button in self.btn_add_phantons:
+            self.btn_add_phantons.remove(button)
+        
         if(button.cancel):
             self.ids = self.ids - 1
             self.mainCount = self.mainCount - 1
-            self.btn_add_phantons.remove(button)
+            #fechar a janela
+            button.phanton.cancelButton.clicked.connect(button.phanton.closeIt)
+            self.button.setEnabled(True)
+            button.hide()
+            if self.ids < 0 :
+                self.ids = 0
 
         else:
             button.cancel = True
                 
-        #fechar a janela
-        button.phanton.cancelButton.clicked.connect(button.phanton.closeIt)
-        self.button.setEnabled(True)
-        button.hide()
-        if self.ids < 0 :
-            self.ids = 0
+        
 
         if self.mainCount < 0 :
             self.mainCount = 0   
+
+    def exibirLista(self):
+        self.window.show()
 
     # adicionar recortes do phanton
     def addPhantons(self):
         #limite de recorte por tela
         if self.ids < 8 :
             crop_phanton = QPushButtonLabel(self)
-            self.btn_add_phantons.append(crop_phanton)
             crop_phanton.setMain(self)
             crop_phanton.setText('Add new Phanton')
             size = QSize(screensize[0]/10, screensize[1]/100)
@@ -358,10 +368,10 @@ class MainClass(QWidget):
             self.listBox.addWidget(crop_phanton)
             self.listBox.setAlignment(Qt.AlignLeft)
             self.button.setEnabled(False)
-            
+            self.btn_add_phantons.append(crop_phanton)
 
-        elif self.mainCount >= 8:
-            self.window.show()
+            if self.mainCount >= 7:
+                self.buttonLista.setEnabled(True)
 
     #redefine o tamanho das imagens
     def processImage(self, thisImage):
@@ -539,15 +549,6 @@ class MainClass(QWidget):
         # aplica erosao e dilatacao
         newImage = cv2.erode(newImage,kernel,iterations = 1)
         newImage = cv2.morphologyEx(newImage, cv2.MORPH_OPEN, kernel)
-
-        kernel_sharpening = np.array([[-1,-1,-1], 
-                                    [-1, 9,-1],
-                                    [-1,-1,-1]])
-        # aplica filtro de nitidez
-        newImage = cv2.filter2D(newImage, -1, kernel_sharpening)
-        
-        # aplica filtro Gaussiano
-        newImage = cv2.GaussianBlur(newImage, (3, 3), 0)
 
         # redimensiona a imagem e aplica o mesmo alinhamento
         height = newImage.shape[0]
